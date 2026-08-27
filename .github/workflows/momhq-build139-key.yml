@@ -1,0 +1,30 @@
+name: MoMHQ Build 139 Ephemeral Key
+
+on:
+  push:
+    branches:
+      - momhq-toolchain-export-139
+
+permissions:
+  contents: read
+
+jobs:
+  generate-key:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate ephemeral RSA keypair
+        shell: bash
+        run: |
+          set -euxo pipefail
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out /tmp/momhq-build139-private.pem
+          openssl pkey -in /tmp/momhq-build139-private.pem -pubout -out /tmp/momhq-build139-public.pem
+          chmod 600 /tmp/momhq-build139-private.pem
+          echo "MOMHQ_PUBLIC_KEY_B64=$(base64 -w0 /tmp/momhq-build139-public.pem)"
+
+      - name: Upload private key artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: momhq-build139-private-key
+          path: /tmp/momhq-build139-private.pem
+          retention-days: 1
+          compression-level: 0
