@@ -1,0 +1,37 @@
+name: MoMHQ Build Tools 35 Export
+
+on:
+  push:
+    branches:
+      - momhq-toolchain-export-139
+
+permissions:
+  contents: read
+
+jobs:
+  export-build-tools-35:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install and package Build Tools 35
+        shell: bash
+        run: |
+          set -euxo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'build-tools;35.0.0'
+          mkdir -p /tmp/sdk35/build-tools
+          cp -a "$ANDROID_HOME/build-tools/35.0.0" /tmp/sdk35/build-tools/
+          tar -C /tmp/sdk35 -czf /tmp/momhq-build-tools-35.0.0.tar.gz build-tools
+          sha256sum /tmp/momhq-build-tools-35.0.0.tar.gz > /tmp/momhq-build-tools-35.0.0.sha256
+
+      - name: Upload Build Tools 35
+        uses: actions/upload-artifact@v4
+        with:
+          name: momhq-build-tools-35-139
+          path: |
+            /tmp/momhq-build-tools-35.0.0.tar.gz
+            /tmp/momhq-build-tools-35.0.0.sha256
+          retention-days: 1
+          compression-level: 0
