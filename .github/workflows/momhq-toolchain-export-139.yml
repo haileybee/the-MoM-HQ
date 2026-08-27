@@ -40,11 +40,11 @@ jobs:
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'platform-tools'
 
-      - name: Prime exact MoMHQ Gradle dependencies
+      - name: Prime exact MoMHQ Gradle and Kotlin dependencies
         shell: bash
         run: |
           set -euxo pipefail
-          mkdir -p /tmp/momhq-prime/app/src/main
+          mkdir -p /tmp/momhq-prime/app/src/main/java/com/momhq/prime
           cat > /tmp/momhq-prime/settings.gradle.kts <<'EOF'
           pluginManagement {
               repositories { google(); mavenCentral(); gradlePluginPortal() }
@@ -72,6 +72,7 @@ jobs:
           android {
               namespace = "com.momhq.prime"
               compileSdk = 36
+              buildToolsVersion = "36.0.0"
               defaultConfig { applicationId = "com.momhq.prime"; minSdk = 26; targetSdk = 36; versionCode = 1; versionName = "1.0" }
               compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
           }
@@ -92,8 +93,13 @@ jobs:
           cat > /tmp/momhq-prime/app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"><application android:label="Prime" /></manifest>
           EOF
+          cat > /tmp/momhq-prime/app/src/main/java/com/momhq/prime/PrimeMarker.kt <<'EOF'
+          package com.momhq.prime
+          object PrimeMarker { const val BUILD = 139 }
+          EOF
           cd /tmp/momhq-prime
           /tmp/gradle-8.13/bin/gradle --no-daemon :app:assembleRelease
+          find "$HOME/.gradle/caches" -type f \( -path '*kotlin-build-tools-compat*2.3.21*' -o -path '*kotlin-build-tools-impl*2.3.21*' \) -print | head -20
 
       - name: Create split export packages
         shell: bash
