@@ -47,18 +47,11 @@ jobs:
           mkdir -p /tmp/momhq-prime/app/src/main
           cat > /tmp/momhq-prime/settings.gradle.kts <<'EOF'
           pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
           }
           dependencyResolutionManagement {
               repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
+              repositories { google(); mavenCentral() }
           }
           rootProject.name = "MoMHQPrime"
           include(":app")
@@ -75,30 +68,14 @@ jobs:
           kotlin.code.style=official
           EOF
           cat > /tmp/momhq-prime/app/build.gradle.kts <<'EOF'
-          plugins {
-              id("com.android.application")
-              id("org.jetbrains.kotlin.android")
-          }
+          plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
           android {
               namespace = "com.momhq.prime"
               compileSdk = 36
-              defaultConfig {
-                  applicationId = "com.momhq.prime"
-                  minSdk = 26
-                  targetSdk = 36
-                  versionCode = 1
-                  versionName = "1.0"
-              }
-              compileOptions {
-                  sourceCompatibility = JavaVersion.VERSION_17
-                  targetCompatibility = JavaVersion.VERSION_17
-              }
+              defaultConfig { applicationId = "com.momhq.prime"; minSdk = 26; targetSdk = 36; versionCode = 1; versionName = "1.0" }
+              compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
           }
-          kotlin {
-              compilerOptions {
-                  jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-              }
-          }
+          kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
           dependencies {
               implementation("androidx.core:core-ktx:1.17.0")
               implementation("androidx.appcompat:appcompat:1.7.1")
@@ -113,38 +90,53 @@ jobs:
           }
           EOF
           cat > /tmp/momhq-prime/app/src/main/AndroidManifest.xml <<'EOF'
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <application android:label="Prime" />
-          </manifest>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"><application android:label="Prime" /></manifest>
           EOF
           cd /tmp/momhq-prime
-          /tmp/gradle-8.13/bin/gradle --no-daemon :app:dependencies --configuration releaseRuntimeClasspath
           /tmp/gradle-8.13/bin/gradle --no-daemon :app:assembleRelease
 
-      - name: Package toolchain and caches
+      - name: Create split export packages
         shell: bash
         run: |
           set -euxo pipefail
-          mkdir -p /tmp/momhq-toolchain-139/android-sdk
-          cp -a /tmp/gradle-8.13 /tmp/momhq-toolchain-139/
-          cp -a "$ANDROID_HOME/platforms/android-36" /tmp/momhq-toolchain-139/android-sdk/
-          mkdir -p /tmp/momhq-toolchain-139/android-sdk/build-tools
-          cp -a "$ANDROID_HOME/build-tools/36.0.0" /tmp/momhq-toolchain-139/android-sdk/build-tools/
-          cp -a "$ANDROID_HOME/platform-tools" /tmp/momhq-toolchain-139/android-sdk/
-          cp -a "$ANDROID_HOME/licenses" /tmp/momhq-toolchain-139/android-sdk/
-          mkdir -p /tmp/momhq-toolchain-139/gradle-user-home
-          cp -a "$HOME/.gradle/caches" /tmp/momhq-toolchain-139/gradle-user-home/
-          if [ -d "$HOME/.gradle/native" ]; then cp -a "$HOME/.gradle/native" /tmp/momhq-toolchain-139/gradle-user-home/; fi
-          du -sh /tmp/momhq-toolchain-139
-          tar -C /tmp -czf /tmp/momhq-toolchain-139.tar.gz momhq-toolchain-139
-          sha256sum /tmp/momhq-toolchain-139.tar.gz > /tmp/momhq-toolchain-139.sha256
+          mkdir -p /tmp/sdk-export/platforms /tmp/sdk-export/build-tools
+          cp -a "$ANDROID_HOME/platforms/android-36" /tmp/sdk-export/platforms/
+          cp -a "$ANDROID_HOME/build-tools/36.0.0" /tmp/sdk-export/build-tools/
+          cp -a "$ANDROID_HOME/platform-tools" /tmp/sdk-export/
+          cp -a "$ANDROID_HOME/licenses" /tmp/sdk-export/
+          tar -C /tmp -czf /tmp/momhq-android-sdk-139.tar.gz sdk-export
+          tar -C "$HOME/.gradle" -czf /tmp/momhq-gradle-caches-139.tar.gz caches native || tar -C "$HOME/.gradle" -czf /tmp/momhq-gradle-caches-139.tar.gz caches
+          cp /tmp/gradle-8.13-bin.zip /tmp/momhq-gradle-8.13-bin.zip
+          ls -lh /tmp/momhq-gradle-8.13-bin.zip /tmp/momhq-android-sdk-139.tar.gz /tmp/momhq-gradle-caches-139.tar.gz
+          sha256sum /tmp/momhq-gradle-8.13-bin.zip /tmp/momhq-android-sdk-139.tar.gz /tmp/momhq-gradle-caches-139.tar.gz > /tmp/momhq-toolchain-split-139.sha256
 
-      - name: Upload toolchain artifact
+      - name: Upload Gradle distribution
         uses: actions/upload-artifact@v4
         with:
-          name: momhq-toolchain-139
-          path: |
-            /tmp/momhq-toolchain-139.tar.gz
-            /tmp/momhq-toolchain-139.sha256
+          name: momhq-gradle-8.13-139
+          path: /tmp/momhq-gradle-8.13-bin.zip
           retention-days: 1
           compression-level: 0
+
+      - name: Upload Android SDK
+        uses: actions/upload-artifact@v4
+        with:
+          name: momhq-android-sdk-139
+          path: /tmp/momhq-android-sdk-139.tar.gz
+          retention-days: 1
+          compression-level: 0
+
+      - name: Upload Gradle caches
+        uses: actions/upload-artifact@v4
+        with:
+          name: momhq-gradle-caches-139
+          path: /tmp/momhq-gradle-caches-139.tar.gz
+          retention-days: 1
+          compression-level: 0
+
+      - name: Upload checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: momhq-toolchain-checksums-139
+          path: /tmp/momhq-toolchain-split-139.sha256
+          retention-days: 1
